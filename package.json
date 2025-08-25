@@ -1,0 +1,29 @@
+{
+  "name": "openai-agents-claude-sdk",
+  "version": "1.0.0",
+  "description": "OpenAI Agents SDK with claude-code-sdk-ts integration",
+  "main": "index.ts",
+  "scripts": {
+    "start": "bun run index.ts",
+    "test": "bun run index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ai-sdk/openai": "^2.0.18",
+    "@instantlyeasy/claude-code-sdk-ts": "^0.3.3",
+    "@openai/agents": "^0.0.17",
+    "@openai/agents-extensions": "^0.0.17",
+    "@openai/agents-openai": "^0.0.17",
+    "@types/node": "^24.3.0",
+    "ai": "^5.0.20",
+    "jsonrepair": "^3.13.0",
+    "openai": "^5.13.1",
+    "typescript": "^5.9.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@ai-sdk/provider": "^2.0.0"
+  }
+}
