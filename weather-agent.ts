@@ -1,18 +1,6 @@
 import { generateText, tool, stepCountIs } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
 import { z } from 'zod';
-
-// 从 constants.ts 导入配置
-const DEEPSEEK_URL = "https://api.deepseek.com/v1";
-const DEEPSEEK_KEY = "sk-063cdfd58a5d444cbab422e9e6e033e5";
-const DEEP_SEEK_MODEL = "deepseek-chat";
-
-// 创建 DeepSeek 客户端（兼容 OpenAI API）
-// DeepSeek 使用标准的 OpenAI 兼容端点
-const deepseek = createOpenAI({
-  baseURL: DEEPSEEK_URL,
-  apiKey: DEEPSEEK_KEY,
-});
+import { getModel } from './models';
 
 // 模拟天气数据库
 const weatherData: Record<string, { temp: number; condition: string }> = {
@@ -26,10 +14,13 @@ const weatherData: Record<string, { temp: number; condition: string }> = {
 
 async function runWeatherAgent() {
   try {
-    console.log('🤖 Starting Weather Agent with DeepSeek...\n');
+    const modelName = process.argv[2] || 'deepseek';
+    const model = getModel(modelName);
+    
+    console.log(`🤖 Starting Weather Agent with ${modelName}...\n`);
     
     const result = await generateText({
-      model: deepseek.chat(DEEP_SEEK_MODEL),
+      model,
       stopWhen: stepCountIs(5), // 最多执行5步
       tools: {
         getWeather: tool({
@@ -112,4 +103,4 @@ if (require.main === module) {
   runWeatherAgent();
 }
 
-export { runWeatherAgent, deepseek };
+export { runWeatherAgent };
