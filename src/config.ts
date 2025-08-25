@@ -18,7 +18,7 @@ export const modelConfigs = {
   // 'claude-code': {
   //   baseURL: 'http://localhost:8080/v1',
   //   apiKey: 'not-needed',
-  //   modelId: 'claude-3-7-sonnet',
+  //   modelId: 'claude-3-7-sonnet-latest',
   // },
 } as const;
 
