@@ -18,7 +18,7 @@
     "@openai/agents-openai": "^0.0.17",
     "@types/node": "^24.3.0",
     "ai": "^5.0.20",
-    "better-playwright-mcp": "^0.2.7",
+    "better-playwright-mcp2": "^3.0.1",
     "dotenv": "^16.6.1",
     "jsonrepair": "^3.13.0",
     "openai": "^5.13.1",
