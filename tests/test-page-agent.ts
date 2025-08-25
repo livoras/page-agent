@@ -27,6 +27,7 @@ async function testPageAgent() {
     '打开百度',
     '在搜索框输入 OpenAI',
     '点击搜索按钮',
+    '获取搜索结果列表',
   ];
 
   // Function to run a single test
@@ -42,9 +43,6 @@ async function testPageAgent() {
     console.log(`📊 Result:`);
     console.log(`   Success: ${result.success ? '✅' : '❌'}`);
     
-    if (result.errorMessage) {
-      console.log(`   Error: ${result.errorMessage}`);
-    }
     
     console.log(`   Page: ${result.pageDescription}`);
     

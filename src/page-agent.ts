@@ -60,7 +60,10 @@ export class PageAgent {
       const snapshot = snapshotResult.snapshot || 'Page is empty or loading';
       
       // Let AI decide and execute the action with streaming
-      console.log('🤖 AI analyzing task...\n');
+      console.log('🤖 AI analyzing task...');
+      console.log(`📏 Snapshot length: ${snapshot.length} characters\n`);
+      
+      const userMessage = `当前页面状态:\n${snapshot}\n\n要执行的任务: ${instruction}\n\n分析页面并执行必要的操作来完成任务。对于数据提取任务，使用 setResultData 存储提取的数据。`;
       
       const result = streamText({
         model: this.model,
@@ -73,7 +76,7 @@ export class PageAgent {
         messages: [
           {
             role: 'user',
-            content: `当前页面状态:\n${snapshot}\n\n要执行的任务: ${instruction}\n\n分析页面并执行必要的操作来完成任务。对于数据提取任务，使用 setResultData 存储提取的数据。`,
+            content: userMessage,
           },
         ],
         onStepFinish: async ({ toolCalls, usage }) => {

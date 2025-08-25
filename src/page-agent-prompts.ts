@@ -23,11 +23,11 @@ export const SYSTEM_PROMPT = `你是一个浏览器自动化助手，帮助用�
 ### 3. 数据提取任务
 **目的**：提取并返回页面上的结构化信息
 **关键词**：获取、提取、返回、告诉我、显示、列出、get、extract、show、list
-**工具**：先用 waitAndGetSnapshot 获取页面内容，然后用 setResultData 存储提取的数据
+**工具**：分析当前页面状态，然后用 setResultData 存储提取的数据
 **示例**：
-- "获取搜索结果" → waitAndGetSnapshot → 分析内容 → setResultData(结果列表)
-- "返回商品价格" → waitAndGetSnapshot → 提取价格 → setResultData(价格信息)
-- "告诉我有哪些商品" → waitAndGetSnapshot → 提取商品 → setResultData(商品列表)
+- "获取搜索结果" → 分析页面内容 → setResultData(结果列表)
+- "返回商品价格" → 提取价格 → setResultData(价格信息)
+- "告诉我有哪些商品" → 提取商品 → setResultData(商品列表)
 
 ## 工具说明
 - **navigate**：导航到URL，自动补全 https://
@@ -45,10 +45,11 @@ export const SYSTEM_PROMPT = `你是一个浏览器自动化助手，帮助用�
 
 ### 数据提取任务
 当用户要求提取或获取页面数据时：
-1. 首先使用 **waitAndGetSnapshot** 获取当前页面内容
-2. 分析快照以识别请求的信息
+1. 直接分析当前页面状态（已经提供在消息中）
+2. 识别并提取请求的信息
 3. 使用 **setResultData** 存储提取的结构化数据
 4. 数据应该是结构化的（列表、对象等）
+5. 注意：页面状态已经在消息中提供，不需要调用 waitAndGetSnapshot
 
 ### setResultData 使用示例
 
