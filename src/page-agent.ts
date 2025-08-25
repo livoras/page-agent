@@ -44,7 +44,19 @@ export class PageAgent {
           }
           
           const result = await this.client.navigate(this.pageId!, url);
-          return { success: true, navigatedTo: url };
+          
+          // 等待页面加载
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // 获取导航后的快照
+          const afterNav = await this.client.getSnapshot(this.pageId!);
+          
+          return { 
+            success: true, 
+            navigatedTo: url,
+            pageTitle: afterNav.title || 'Unknown',
+            pageUrl: afterNav.url || url
+          };
         },
       }),
 
@@ -155,7 +167,7 @@ export class PageAgent {
         messages: [
           {
             role: 'user',
-            content: `当前页面状态:\n${snapshot}\n\n要执行的任务: ${instruction}\n\n分析页面并执行必要的操作来完成任务。`,
+            content: `Current page state:\n${snapshot}\n\nTask to execute: ${instruction}\n\nAnalyze the page and execute necessary operations to complete the task. After completion, provide a friendly response and include the JSON result as specified in the system prompt.`,
           },
         ],
         onStepFinish: async ({ toolCalls, usage }) => {
@@ -218,6 +230,11 @@ export class PageAgent {
       console.log(`   └─ 总 Tokens: ${finalUsage?.totalTokens || 'N/A'}`);
       
       // 从 AI 响应中提取 JSON 结果
+      console.log('\n🔍 调试: AI 返回的完整文本:');
+      console.log('---开始---');
+      console.log(finalText);
+      console.log('---结束---');
+      
       const jsonMatch = finalText.match(/```json\s*([\s\S]*?)\s*```/);
       
       if (jsonMatch) {
