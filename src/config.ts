@@ -12,7 +12,7 @@ export const modelConfigs = {
   },
   zhipu: {
     baseURL: 'https://open.bigmodel.cn/api/paas/v4',
-    apiKey: 'd5fc093527084079b319b28e824cc53d.6zP2QFGrD0SBEX9s',
+    apiKey: 'd4099f7390e240dbb9c7fd414f2002e0.PyL3qexhT9dQqXuJ',
     modelId: 'glm-4.5',
   },
   // 'claude-code': {
