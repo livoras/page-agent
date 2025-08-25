@@ -1,8 +1,8 @@
 import { PlaywrightClient } from 'better-playwright-mcp2/lib/index.js';
-import { streamText, generateText, tool } from 'ai';
-import { z } from 'zod';
+import { streamText, generateText } from 'ai';
 import { getModel } from './models';
 import { SYSTEM_PROMPT } from './page-agent-prompts';
+import { createPageTools } from './page-tools';
 
 export interface PageAgentConfig {
   serverUrl?: string;
@@ -11,7 +11,6 @@ export interface PageAgentConfig {
 
 export interface ActionResult {
   success: boolean;
-  errorMessage?: string;
   pageDescription: string;
   data: any | null;
 }
@@ -21,6 +20,8 @@ export class PageAgent {
   private pageId: string | null = null;
   private model: any;
   private serverUrl: string;
+  private extractedData: any = null;
+  private extractionMessage: string = '';
 
   constructor(config: PageAgentConfig = {}) {
     this.serverUrl = config.serverUrl || 'http://localhost:3102';
@@ -28,108 +29,6 @@ export class PageAgent {
     this.model = getModel(config.modelName || 'deepseek');
   }
 
-  private get tools() {
-    return {
-      navigate: tool({
-        description: '导航到指定的URL或网站',
-        inputSchema: z.object({
-          url: z.string().describe('要导航到的URL地址，如 google.com 或 https://github.com'),
-        }),
-        execute: async ({ url }) => {
-          await this.ensurePage();
-          
-          // 如果没有协议，添加 https://
-          if (!url.startsWith('http')) {
-            url = 'https://' + url;
-          }
-          
-          const result = await this.client.navigate(this.pageId!, url);
-          
-          // 等待页面加载
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          // 获取导航后的快照
-          const afterNav = await this.client.getSnapshot(this.pageId!);
-          
-          return { 
-            success: true, 
-            navigatedTo: url,
-            pageTitle: afterNav.title || 'Unknown',
-            pageUrl: afterNav.url || url
-          };
-        },
-      }),
-
-      click: tool({
-        description: 'Click on an element in the page',
-        inputSchema: z.object({
-          ref: z.string().describe('The ref ID of the element to click'),
-          elementDescription: z.string().optional().describe('Natural language description of the element'),
-        }),
-        execute: async ({ ref, elementDescription }) => {
-          await this.ensurePage();
-          const result = await this.client.click(this.pageId!, ref, elementDescription);
-          return { success: true, clicked: elementDescription || `element with ref=${ref}` };
-        },
-      }),
-
-      type: tool({
-        description: 'Type text into an input field',
-        inputSchema: z.object({
-          ref: z.string().describe('The ref ID of the input element'),
-          text: z.string().describe('The text to type'),
-          elementDescription: z.string().optional().describe('Natural language description of the element'),
-        }),
-        execute: async ({ ref, text, elementDescription }) => {
-          await this.ensurePage();
-          const result = await this.client.type(this.pageId!, ref, text, elementDescription);
-          return { success: true, typed: text, into: elementDescription || `element with ref=${ref}` };
-        },
-      }),
-
-      fill: tool({
-        description: 'Fill a form field with a value (clears existing content first)',
-        inputSchema: z.object({
-          ref: z.string().describe('The ref ID of the form element'),
-          value: z.string().describe('The value to fill'),
-          elementDescription: z.string().optional().describe('Natural language description of the element'),
-        }),
-        execute: async ({ ref, value, elementDescription }) => {
-          await this.ensurePage();
-          const result = await this.client.fill(this.pageId!, ref, value, elementDescription);
-          return { success: true, filled: value, into: elementDescription || `element with ref=${ref}` };
-        },
-      }),
-
-      select: tool({
-        description: 'Select an option from a dropdown',
-        inputSchema: z.object({
-          ref: z.string().describe('The ref ID of the select element'),
-          value: z.string().describe('The value or text of the option to select'),
-          elementDescription: z.string().optional().describe('Natural language description of the element'),
-        }),
-        execute: async ({ ref, value, elementDescription }) => {
-          await this.ensurePage();
-          const result = await this.client.select(this.pageId!, ref, value, elementDescription);
-          return { success: true, selected: value, from: elementDescription || `element with ref=${ref}` };
-        },
-      }),
-
-
-      waitAndGetSnapshot: tool({
-        description: 'Wait for a moment and get current page snapshot',
-        inputSchema: z.object({
-          seconds: z.number().default(2).describe('Seconds to wait before getting snapshot'),
-        }),
-        execute: async ({ seconds }) => {
-          await this.ensurePage();
-          await new Promise(resolve => setTimeout(resolve, seconds * 1000));
-          const snapshot = await this.client.getSnapshot(this.pageId!);
-          return { success: true, snapshot: snapshot.snapshot };
-        },
-      }),
-    };
-  }
 
   private async ensurePage(): Promise<void> {
     if (!this.pageId) {
@@ -148,6 +47,10 @@ export class PageAgent {
       console.log(`\n🎯 Executing: "${instruction}"`);
       console.log("─".repeat(50));
       
+      // Reset extracted data for new task
+      this.extractedData = null;
+      this.extractionMessage = '';
+      
       // Ensure page exists
       await this.ensurePage();
       
@@ -161,13 +64,16 @@ export class PageAgent {
       
       const result = streamText({
         model: this.model,
-        tools: this.tools,
+        tools: createPageTools(this.client, this.pageId!, (data, message) => {
+          this.extractedData = data;
+          this.extractionMessage = message;
+        }),
         toolChoice: 'auto',
         system: SYSTEM_PROMPT,
         messages: [
           {
             role: 'user',
-            content: `Current page state:\n${snapshot}\n\nTask to execute: ${instruction}\n\nAnalyze the page and execute necessary operations to complete the task. After completion, provide a friendly response and include the JSON result as specified in the system prompt.`,
+            content: `当前页面状态:\n${snapshot}\n\n要执行的任务: ${instruction}\n\n分析页面并执行必要的操作来完成任务。对于数据提取任务，使用 setResultData 存储提取的数据。`,
           },
         ],
         onStepFinish: async ({ toolCalls, usage }) => {
@@ -229,47 +135,29 @@ export class PageAgent {
       console.log(`   ├─ 工具调用: ${steps.flatMap((s) => s.toolCalls).length}`);
       console.log(`   └─ 总 Tokens: ${finalUsage?.totalTokens || 'N/A'}`);
       
-      // 从 AI 响应中提取 JSON 结果
-      console.log('\n🔍 调试: AI 返回的完整文本:');
-      console.log('---开始---');
-      console.log(finalText);
-      console.log('---结束---');
-      
-      const jsonMatch = finalText.match(/```json\s*([\s\S]*?)\s*```/);
-      
-      if (jsonMatch) {
-        try {
-          const jsonResult = JSON.parse(jsonMatch[1]);
-          console.log('\n📋 AI 判断结果:', jsonResult);
-          
-          return {
-            success: jsonResult.success || false,
-            pageDescription,
-            data: jsonResult.data || null,
-            errorMessage: jsonResult.success ? undefined : (jsonResult.message || '任务执行失败'),
-          };
-        } catch (parseError) {
-          console.error('❌ 解析 JSON 失败:', parseError);
-        }
-      }
-      
-      // 降级处理：如果没有返回 JSON，基于工具调用判断
-      console.warn('⚠️  AI 未返回 JSON 格式结果，使用降级逻辑');
+      // 判断任务是否成功
       const allToolCalls = steps.flatMap((s) => s.toolCalls);
       const success = allToolCalls.length > 0 && !allToolCalls.some(tc => tc.result?.error);
+      
+      // 如果提取了数据，使用提取的数据
+      const resultData = this.extractedData || (allToolCalls.length > 0 ? allToolCalls[0].result : null);
+      
+      console.log('\n📊 结果:');
+      if (this.extractedData) {
+        console.log(`   ├─ 提取的数据: ${this.extractionMessage}`);
+      }
+      console.log(`   └─ 成功: ${success ? '✅' : '❌'}`);
       
       return {
         success,
         pageDescription,
-        data: allToolCalls.length > 0 ? allToolCalls[0].result : null,
-        errorMessage: success ? undefined : '未执行任何操作或操作失败',
+        data: resultData,
       };
       
     } catch (error) {
       console.error('❌ Error during act():', error);
       return {
         success: false,
-        errorMessage: error instanceof Error ? error.message : 'Unknown error occurred',
         pageDescription: 'Unable to describe page due to error',
         data: null,
       };
@@ -280,8 +168,8 @@ export class PageAgent {
     try {
       const result = await generateText({
         model: this.model,
-        system: 'You are a helpful assistant that describes web pages in natural language. Be concise and focus on the main content and interactive elements visible on the page. Respond in the same language as the user query.',
-        prompt: `Describe this web page state in 1-2 sentences, focusing on what the user can see and interact with:\n\n${snapshot}`,
+        system: '你是一个帮助描述网页的助手。简洁地描述页面的主要内容和可交互元素。根据用户的语言回复。',
+        prompt: `用1-2句话描述这个网页状态，重点说明用户能看到和交互的内容:\n\n${snapshot}`,
       });
       
       return result.text || 'Page description unavailable';
