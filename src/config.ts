@@ -15,6 +15,11 @@ export const modelConfigs = {
     apiKey: 'd5fc093527084079b319b28e824cc53d.6zP2QFGrD0SBEX9s',
     modelId: 'glm-4.5',
   },
+  // 'claude-code': {
+  //   baseURL: 'http://localhost:8080/v1',
+  //   apiKey: 'not-needed',
+  //   modelId: 'claude-3-7-sonnet',
+  // },
 } as const;
 
 export type ModelName = keyof typeof modelConfigs;
