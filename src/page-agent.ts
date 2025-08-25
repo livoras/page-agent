@@ -135,7 +135,7 @@ export class PageAgent {
     // Extract page description from AI response
     let pageDescription = "Page description unavailable";
     if (finalText) {
-      const match = finalText.match(/\[页面状态\]\s*(.+)$/);
+      const match = finalText.match(/<页面状态>([\s\S]*?)<\/页面状态>/);
       if (match) {
         pageDescription = match[1].trim();
       }
