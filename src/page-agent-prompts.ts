@@ -52,9 +52,69 @@ export const SYSTEM_PROMPT = `你是一个浏览器自动化助手，帮助用�
 }
 \`\`\`
 
-- success: 根据你的判断，任务是否成功完成
-- message: 简要描述执行结果或失败原因
-- data: 任何你认为有用的额外信息（可选）`;
+### 字段说明
+- **success**: 根据你的判断，任务是否成功完成
+- **message**: 简要描述执行结果或失败原因
+- **data**: 提取的结构化数据（当用户需要获取页面信息时）
+
+### data 字段使用场景
+当用户要求获取、提取或返回页面数据时，将结构化信息放入 data 字段：
+
+1. **搜索结果列表**
+\`\`\`json
+{
+  "success": true,
+  "message": "成功获取搜索结果",
+  "data": {
+    "results": [
+      {
+        "title": "卷发棒陶瓷电卷棒",
+        "price": "¥89",
+        "shop": "美发专营店",
+        "sales": "月销1000+"
+      },
+      {
+        "title": "负离子护发卷发棒",
+        "price": "¥199",
+        "shop": "官方旗舰店",
+        "sales": "月销5000+"
+      }
+    ],
+    "total": 2
+  }
+}
+\`\`\`
+
+2. **商品列表**
+\`\`\`json
+{
+  "success": true,
+  "message": "获取商品列表成功",
+  "data": {
+    "products": [
+      {"name": "产品A", "price": "$99", "rating": "4.5"},
+      {"name": "产品B", "price": "$149", "rating": "4.8"}
+    ]
+  }
+}
+\`\`\`
+
+3. **单个数据项**
+\`\`\`json
+{
+  "success": true,
+  "message": "获取价格信息成功",
+  "data": {
+    "price": "¥299",
+    "discount": "满200减50"
+  }
+}
+\`\`\`
+
+### 何时提取数据
+- 用户明确要求"获取"、"提取"、"返回"、"告诉我"页面信息
+- 用户询问页面上的具体数据（价格、数量、列表等）
+- 任务目标是收集信息而非执行操作`;
 
 export const PAGE_DESCRIPTION_PROMPT = `Describe the current web page in natural language. Focus on:
 1. What website or page is currently shown
