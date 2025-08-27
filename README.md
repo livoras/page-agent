@@ -1,100 +1,130 @@
-# Claude Code + AI SDKs Integration
+# Page Agent
 
-Use Claude Code with Vercel AI SDK and OpenAI Agents SDK through OpenAI API compatible wrapper.
+基于 better-playwright-mcp3 的智能网页自动化代理，使用 AI 理解自然语言指令并自动执行网页操作。
 
-## Setup
+## 功能特性
+
+- 🤖 自然语言控制：用中文或英文描述任务，AI 自动执行
+- 🔍 智能元素定位：通过 searchSnapshot 精准搜索页面元素
+- 📊 数据提取：自动提取网页上的结构化数据
+- 🎯 三层工作流：Outline → Search → Action 的高效执行模式
+
+## 安装
 
 ```bash
+# 安装依赖
 pnpm install
+
+# 安装并启动 better-playwright-mcp3 服务
+npx better-playwright-mcp3@latest server
 ```
 
-## How it Works
-
-1. **Start the OpenAI API wrapper server:**
-```bash
-cd /tmp/claude-code-openai-wrapper
-python main.py  # Choose 'N' for no API key
-```
-
-2. **Run examples:**
-```bash
-bun index.ts                  # Vercel AI SDK simple example
-bun aisdk-wrapper-final.ts    # Vercel AI SDK comprehensive examples
-bun openai-agents-example.ts  # OpenAI Agents SDK example
-```
-
-## Quick Start
-
-### Vercel AI SDK
+## 快速开始
 
 ```typescript
-import { generateText } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+import { PageAgent } from './src/page-agent';
 
-const claude = createOpenAI({
-  baseURL: 'http://localhost:8000/v1',
-  apiKey: 'not-needed',
+const agent = new PageAgent({
+  serverUrl: 'http://localhost:3102',  // better-playwright-mcp3 服务地址
+  modelName: 'deepseek'                 // 使用的 AI 模型
 });
 
-const { text } = await generateText({
-  model: claude.chat('claude-sonnet-4-20250514'),
-  prompt: 'Hello!',
-});
+// 执行任务
+const result = await agent.act('去百度搜索 OpenAI');
+
+// 获取提取的数据
+if (result.success && result.data) {
+  console.log('提取的数据:', result.data);
+}
+
+// 关闭页面
+await agent.close();
 ```
 
-### OpenAI Agents SDK
+## 支持的任务类型
+
+### 1. 导航任务
+```javascript
+await agent.act('打开亚马逊');
+await agent.act('去 github.com');
+```
+
+### 2. 操作任务
+```javascript
+await agent.act('在搜索框输入手机');
+await agent.act('点击搜索按钮');
+await agent.act('选择北京');
+```
+
+### 3. 数据提取
+```javascript
+await agent.act('获取搜索结果的标题和链接');
+await agent.act('提取商品价格');
+```
+
+## 工作原理
+
+1. **getOutline**: 获取页面概览，了解页面结构
+2. **searchSnapshot**: 使用正则表达式搜索特定元素
+3. **执行操作**: 通过 ref ID 操作找到的元素
+4. **重新理解**: 每次操作后重新调用 getOutline 了解页面变化
+
+## 配置
+
+### AI 模型选择
+
+在 `src/models.ts` 中配置可用的 AI 模型：
 
 ```typescript
-import { Agent, run, setTracingDisabled } from '@openai/agents';
-import { setDefaultOpenAIClient, setOpenAIAPI } from '@openai/agents-openai';
-import OpenAI from 'openai';
-
-// Disable tracing (optional, removes warnings)
-setTracingDisabled(true);
-
-// IMPORTANT: Use Chat Completions API
-setOpenAIAPI('chat_completions');
-
-const client = new OpenAI({
-  baseURL: 'http://localhost:8000/v1',
-  apiKey: 'not-needed',
-});
-
-setDefaultOpenAIClient(client);
-
-const agent = new Agent({
-  name: 'Assistant',
-  model: 'claude-sonnet-4-20250514',
-  instructions: 'Be helpful and concise.',
-});
-
-const result = await run(agent, 'Hello!', { maxTurns: 1 });
+// 支持的模型
+- deepseek
+- gpt-4o
+- claude-3.5-sonnet
 ```
 
-## Features
+### 服务器配置
 
-✅ Text generation  
-✅ Streaming responses  
-✅ Multi-turn conversations  
-✅ System prompts  
-✅ OpenAI Agents SDK (with Chat API)
-✅ Vercel AI SDK
-❌ Tool calls / Function calling (not supported by Claude Code CLI)
-❌ OpenAI Responses API (use Chat API instead)  
+```typescript
+const agent = new PageAgent({
+  serverUrl: 'http://localhost:3102', // better-playwright-mcp3 服务地址
+  modelName: 'deepseek'               // AI 模型
+});
+```
 
-## Available Models
+## 示例
 
-- `claude-sonnet-4-20250514` (recommended)
-- `claude-opus-4-20250514`
+运行演示：
 
-## Files
+```bash
+# 基础演示
+pnpm tsx demos/page-agent-demo.ts
 
-- `index.ts` - Vercel AI SDK simple example
-- `aisdk-wrapper-final.ts` - Vercel AI SDK comprehensive examples
-- `openai-agents-example.ts` - OpenAI Agents SDK integration
+# 测试工作流
+pnpm tsx tests/test-new-workflow.ts
+```
 
-## Prerequisites
+## 依赖项
 
-1. Claude Code CLI installed and authenticated
-2. Node.js/Bun and pnpm  
-3. Python 3.10+ with Poetry
+- **better-playwright-mcp3** v3.2.0+: 浏览器自动化和内容搜索
+- **ai** (Vercel AI SDK): AI 模型集成
+- **zod**: 参数验证
+
+## 开发
+
+```bash
+# 运行测试
+pnpm tsx tests/test-new-workflow.ts
+
+# 查看日志
+# 日志会实时显示 AI 的思考过程和工具调用
+```
+
+## 注意事项
+
+1. 需要先启动 better-playwright-mcp3 服务
+2. 确保 AI 模型 API 密钥已配置
+3. searchSnapshot 使用标准正则表达式，多个关键词用 `|` 分隔
+
+## License
+
+MIT
