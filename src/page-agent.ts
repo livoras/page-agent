@@ -1,4 +1,4 @@
-import { PlaywrightClient } from "better-playwright-mcp2/lib/index.js";
+import { PlaywrightClient } from "better-playwright-mcp3";
 import { streamText, stepCountIs } from "ai";
 import { getModel } from "./models";
 import { SYSTEM_PROMPT } from "./page-agent-prompts";
@@ -11,7 +11,6 @@ export interface PageAgentConfig {
 
 export interface ActionResult {
   success: boolean;
-  pageDescription: string;
   data: any | null;
 }
 
@@ -52,20 +51,14 @@ export class PageAgent {
     // Ensure page exists
     await this.ensurePage();
 
-    // Get current page snapshot
-    console.log("📸 Getting page snapshot...");
-    const snapshotResult = await this.client.getSnapshot(this.pageId!);
-    const snapshot = snapshotResult.snapshot || "Page is empty or loading";
-
     // Let AI decide and execute the action with streaming
     console.log("🤖 AI analyzing task...");
-    console.log(`📏 Snapshot length: ${snapshot.length} characters\n`);
 
-    const userMessage = `当前页面状态:\n${snapshot}\n\n要执行的任务: ${instruction}\n\n分析页面并执行必要的操作来完成任务。对于数据提取任务，使用 setResultData 存储提取的数据。`;
+    const userMessage = `要执行的任务: ${instruction}\n\n请按照三层工作流程执行：\n1. 先使用 getOutline 了解页面概览\n2. 基于概览，使用 searchSnapshot 搜索具体内容\n3. 使用找到的 ref 执行操作\n\n对于数据提取任务，使用 setResultData 存储提取的数据。`;
 
     const result = streamText({
       model: this.model,
-      stopWhen: stepCountIs(10),
+      stopWhen: stepCountIs(100),
       tools: createPageTools(this.client, this.pageId!, (data, message) => {
         this.extractedData = data;
         this.extractionMessage = message;
@@ -78,14 +71,19 @@ export class PageAgent {
           content: userMessage,
         },
       ],
-      onStepFinish: async ({ toolCalls, usage }) => {
+      onStepFinish: async ({ toolCalls, toolResults, usage }) => {
         if (toolCalls && toolCalls.length > 0) {
           console.log(`\n✅ [Step] 完成了 ${toolCalls.length} 个工具调用`);
-          toolCalls.forEach((tc) => {
-            if (tc.result) {
+          toolCalls.forEach((tc, index) => {
+            console.log(`   └─ 工具: ${tc.toolName}`);
+            // 从 toolResults 中获取对应的结果
+            const result = toolResults?.[index]?.output;
+            if (result) {
               console.log(
-                `   └─ ${tc.toolName}: ${JSON.stringify(tc.result)}`,
+                `      结果: ${JSON.stringify(result).substring(0, 200)}`,
               );
+            } else {
+              console.log(`      结果: (无结果)`);
             }
           });
         }
@@ -132,31 +130,21 @@ export class PageAgent {
     const steps = await result.steps;
     const finalText = await result.text;
 
-    // Extract page description from AI response
-    let pageDescription = "Page description unavailable";
-    if (finalText) {
-      const match = finalText.match(/<页面状态>([\s\S]*?)<\/页面状态>/);
-      if (match) {
-        pageDescription = match[1].trim();
-      }
-    }
-
     console.log("\n📊 执行统计:");
     console.log(`   ├─ 总步数: ${steps.length}`);
-    console.log(
-      `   ├─ 工具调用: ${steps.flatMap((s) => s.toolCalls).length}`,
-    );
+    console.log(`   ├─ 工具调用: ${steps.flatMap((s) => s.toolCalls).length}`);
     console.log(`   └─ 总 Tokens: ${finalUsage?.totalTokens || "N/A"}`);
 
     // 判断任务是否成功
     const allToolCalls = steps.flatMap((s) => s.toolCalls);
+    const allToolResults = steps.flatMap((s) => s.toolResults || []);
     const success =
-      allToolCalls.length > 0 && !allToolCalls.some((tc) => tc.result?.error);
+      allToolCalls.length > 0 && !allToolResults.some((tr) => tr.output?.error);
 
     // 如果提取了数据，使用提取的数据
     const resultData =
       this.extractedData ||
-      (allToolCalls.length > 0 ? allToolCalls[0].result : null);
+      (allToolResults.length > 0 ? allToolResults[0].output : null);
 
     console.log("\n📊 结果:");
     if (this.extractedData) {
@@ -166,7 +154,6 @@ export class PageAgent {
 
     return {
       success,
-      pageDescription,
       data: resultData,
     };
   }

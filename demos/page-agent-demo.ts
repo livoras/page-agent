@@ -1,6 +1,9 @@
 #!/usr/bin/env tsx
 import { PageAgent } from '../src/page-agent';
 import * as readline from 'readline';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -63,13 +66,13 @@ async function demo() {
       console.log('✅ Success!');
     } else {
       console.log('❌ Failed');
-      if (result.errorMessage) {
-        console.log(`   Error: ${result.errorMessage}`);
-      }
     }
     
-    console.log(`\n📄 Page State:`);
-    console.log(`   ${result.pageDescription}\n`);
+    if (result.data) {
+      console.log('📊 Extracted Data:');
+      console.log(JSON.stringify(result.data, null, 2));
+      console.log();
+    }
     
     return true;
   };

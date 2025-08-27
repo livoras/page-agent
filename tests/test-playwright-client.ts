@@ -1,4 +1,4 @@
-import { PlaywrightClient } from 'better-playwright-mcp2/lib/index.js';
+import { PlaywrightClient } from 'better-playwright-mcp3';
 
 async function testPlaywrightClient() {
   console.log('Testing Playwright Client connection...');
